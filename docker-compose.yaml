@@ -19,7 +19,7 @@ x-airflow-common:
     AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
     AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
     AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
-    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-} selenium gspread==3.6.0 oauth2client
+    _PIP_ADDITIONAL_REQUIREMENTS: ${_PIP_ADDITIONAL_REQUIREMENTS:-} selenium gspread==3.6.0 oauth2client google-auth google-auth-oauthlib google-auth-httplib2 google-api-python-client pandas beautifulsoup4
 
     AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
     AIRFLOW__SCHEDULER__MIN_FILE_PROCESS_INTERVAL: 5
@@ -64,7 +64,7 @@ services:
       retries: 50
     restart: always
     
-  #instalando Chormedriver 
+  #installing Chormedriver
   chromedriver:
     image: selenium/standalone-chrome:latest
     environment:
