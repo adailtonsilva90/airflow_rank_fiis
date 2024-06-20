@@ -11,14 +11,13 @@ from airflow.operators.python_operator  import PythonOperator
 from datetime import datetime
 from selenium import webdriver
 from selenium.webdriver.chrome.options import Options
+from selenium import webdriver
+
+
 import gspread
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
 
-
-# Configure logging
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
 
 #Loading Variables
 url = Variable.get('url')
@@ -43,7 +42,7 @@ def dowload_file_html(url, file_path_html):
 
     try:
         print("Getting data of url")
-        driver.get(url)        
+        driver.get(url)
         html_content = driver.page_source
 
         print("Saving file html")
@@ -88,27 +87,33 @@ def delete_existing_spreadsheets(drive_service, file_name):
     for file in files:
         try:
             drive_service.files().delete(fileId=file['id']).execute()
-            logger.info(f"Arquivo {file['name']} deletado com sucesso.")
+            print(f"Arquivo {file['name']} deletado com sucesso.")
         except HttpError as e:
             logger.error(f"Erro ao deletar o arquivo {file['name']}: {e}")
 
-def load_table_file_html_to_gdrive(file_path_html, file_path_credential, folder_id):
-    logger.info("Verificando existência do arquivo HTML...")
+
+def filter_fiis(df):
+    
+    df = df.dropna()  
+
+    return df
+
+def ETL_send_to_gdrive(file_path_html, file_path_credential, folder_id):
+    print("Checking existence of the HTML file...")
     if os.path.exists(file_path_html):
         with open(file_path_html, 'r', encoding='utf-8') as file:
             html_content = file.read()
-            logger.info("Conteúdo do arquivo HTML lido com sucesso.")
+            print("HTML file content read successfully.")
 
         soup = BeautifulSoup(html_content, 'html.parser')
         tables = soup.find_all('table')
 
         if tables:
-            logger.info("Tabelas encontradas no HTML.")
+            print("Tables found in HTML.")
             df = pd.read_html(str(tables), match='Setor')[0]
-            logger.info("DataFrame criado a partir das tabelas.")
-
-            # Handling non-JSON compatible values
-            df = df.replace([float('inf'), float('-inf'), pd.NA, None], 0)
+            print("DataFrame created from tables.")
+          
+            df = filter_fiis(df)
 
             # Authenticate to Google Sheets and Google Drive with gspread and google-auth
             scope = ['https://spreadsheets.google.com/feeds', 'https://www.googleapis.com/auth/drive']
@@ -120,36 +125,35 @@ def load_table_file_html_to_gdrive(file_path_html, file_path_credential, folder_
 
             # Delete existing sheets with the same name
             delete_existing_spreadsheets(drive_service, 'rank_fiis')
-            logger.info("Planilhas existentes com o nome 'rank_fiis' foram deletadas.")
+            print("Existing sheets with the name 'rank_fiis' have been deleted.")
 
             # Create the new spreadsheet in Google Sheets
             spreadsheet = client.create('rank_fiis')
-            logger.info("Nova planilha criada no Google Sheets.")
-            time.sleep(5)  # Esperar alguns segundos para garantir que a planilha seja criada
+            print("New spreadsheet created in Google Sheets.")
+            time.sleep(5)
             
             try:
-                # Move spreadsheet to specific folder in Google Drive
                 move_file_to_folder(drive_service, spreadsheet.id, folder_id)
-                logger.info("Planilha movida para a pasta especificada no Google Drive.")
+                print("Spreadsheet moved to specified folder in Google Drive.")
 
                 # Send data from the DataFrame to the spreadsheet
                 worksheet = spreadsheet.get_worksheet(0)
                 worksheet.update([df.columns.values.tolist()] + df.values.tolist())
-                logger.info("DataFrame enviado com sucesso para o Google Sheets na pasta especificada!")
-            except HttpError as e:
-                logger.error(f"Erro ao mover a planilha para a pasta: {e}")
+                print("DataFrame successfully sent to Google Sheets in the specified folder!")
+            except Exception as e:
+                print(f"Error moving sheet to folder: {e}")
         else:
-            logger.info("Tabela não encontrada.")
+            print("Table not found.")
     else:
-        logger.info(f"Arquivo {file_path_html} não encontrado.")
+        print(f"File {file_path_html} not found.")
 
 
-tsk_load_table_file_html_to_gdrive = PythonOperator(task_id='tsk_load_table_file_html', 
-                                        python_callable=load_table_file_html_to_gdrive,
+tsk_ETL_send_to_gdrive = PythonOperator(task_id='tsk_load_table_file_html', 
+                                        python_callable=ETL_send_to_gdrive,
                                         op_args=[file_path_html, file_path_credential, folder_id],
                                         provide_context=True,
                                         dag=dag)
 
 
 
-tsk_download_file_html >> tsk_load_table_file_html_to_gdrive
+tsk_download_file_html >> tsk_ETL_send_to_gdrive
