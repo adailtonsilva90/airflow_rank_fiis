@@ -71,7 +71,8 @@ services:
       - START_XVFB=false
     ports:
       - "4444:4444"
-
+    restart: always
+    
   airflow-webserver:
     <<: *airflow-common
     command: webserver

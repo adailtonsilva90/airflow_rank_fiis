@@ -91,10 +91,17 @@ def delete_existing_spreadsheets(drive_service, file_name):
         except HttpError as e:
             logger.error(f"Erro ao deletar o arquivo {file['name']}: {e}")
 
+def clean_convert(valor):
+    valor_limpo = valor.replace('%', '').replace(',','.').strip()
+    return float(valor_limpo)
 
 def filter_fiis(df):
-    
-    df = df.dropna()  
+    df['P/VP'] = pd.to_numeric(df['P/VP'])
+    df = df[df['P/VP'] < 95 ]
+
+    df['Variação Preço'] = df['Variação Preço'].apply(clean_convert)
+    df['Variação Preço'] = pd.to_numeric(df['Variação Preço'])
+    df = df[df['Variação Preço'] > 0 ]
 
     return df
 
@@ -112,7 +119,8 @@ def ETL_send_to_gdrive(file_path_html, file_path_credential, folder_id):
             print("Tables found in HTML.")
             df = pd.read_html(str(tables), match='Setor')[0]
             print("DataFrame created from tables.")
-          
+
+            df = df.dropna()
             df = filter_fiis(df)
 
             # Authenticate to Google Sheets and Google Drive with gspread and google-auth

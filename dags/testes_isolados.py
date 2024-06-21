@@ -28,51 +28,46 @@ file_path_credential = Variable.get('file_path_credential')
 
 dag= DAG('testes_isolados', schedule_interval=None, catchup=False,start_date=datetime(2024, 6 ,4))
 
-
-
-def dowload_file_html(url, file_path_html):
-    chrome_options = Options()
-    chrome_options.add_argument("--headless")
-    chrome_options.add_argument("--no-sandbox")
-    chrome_options.add_argument("--disable-dev-shm-usage")
-    chrome_options.add_argument('--remote-debugging-port=9222')
-
-    driver = webdriver.Remote(
-        command_executor='http://chromedriver:4444/wd/hub',
-        options=chrome_options
-    )
-
-    try:
-        print("Getting data of url")
-        driver.get(url)
-        
-        # Aguardar até que o seletor de colunas seja clicável e clicar nele
-        wait = WebDriverWait(driver, 10)
-        #colunas_selecionadas = wait.until(EC.element_to_be_clickable((By.ID, 'colunas-ranking__select-button')))
-        colunas_selecionadas = wait.until(EC.element_to_be_clickable((By.XPATH, "//*[text()='Colunas Selecionadas']")))
-        colunas_selecionadas.click()        
-
-        # Aguardar até que a opção "selecionar todas" seja clicável e clicar nela
-        #selecionar_todas = wait.until(EC.element_to_be_clickable((By.ID, 'colunas-ranking__todos')))
-        selecionar_todas = wait.until(EC.element_to_be_clickable((By.XPATH, "//*[text()='Selecionar Todos']")))
-        selecionar_todas.click()
-
-        # Aguardar alguns segundos para garantir que todas as colunas sejam carregadas
-        time.sleep(5)
-
-        html_content = driver.page_source
-
-        print("Saving file html")
-        with open(file_path_html, 'w', encoding='utf-8') as file:
-            file.write(html_content)
+def clean_convert(valor):
+    valor_limpo = valor.replace('%', '').replace(',','.').strip()
+    return float(valor_limpo)
     
-    finally:
-        driver.quit()
+
+def filter_fiis(df):
+    df = df.dropna()
+    df['P/VP'] = pd.to_numeric(df['P/VP'])
+    df = df[df['P/VP'] < 95 ]
+
+    df['Variação Preço'] = df['Variação Preço'].apply(clean_convert)
+    df['Variação Preço'] = pd.to_numeric(df['Variação Preço'])
+    df = df[df['Variação Preço'] > 0 ]
 
 
-tsk_download_file_html = PythonOperator(task_id='tsk_download_file_html', 
-                                    python_callable=dowload_file_html,
-                                    op_args=[url, file_path_html],                                      
+    return df
+
+def ETL_send_to_gdrive(file_path_html):
+    print("Checking existence of the HTML file...")
+    if os.path.exists(file_path_html):
+        with open(file_path_html, 'r', encoding='utf-8') as file:
+            html_content = file.read()
+            print("HTML file content read successfully.")
+
+        soup = BeautifulSoup(html_content, 'html.parser')
+        tables = soup.find_all('table')
+
+        if tables:
+            print("Tables found in HTML.")
+            df = pd.read_html(str(tables), match='Setor')[0]
+            print("DataFrame created from tables.")
+          
+            df = filter_fiis(df)
+            print(df.head())
+            print(f"Toltal de linhas: {df.shape[0]}")
+
+
+tsk_teste = PythonOperator(task_id='tsk_teste', 
+                                    python_callable=ETL_send_to_gdrive,
+                                    op_args=[file_path_html],                                      
                                     dag=dag)
                                     
-tsk_download_file_html
+tsk_teste
