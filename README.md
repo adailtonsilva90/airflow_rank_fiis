@@ -24,6 +24,7 @@
     <li>Baixar o arquivo HTML do site com o Selenium, já com os dados carregados.</li>
     <li>Fazer uma varredura no arquivo para encontrar a estrutura da tabela.</li>
     <li>Carregar os dados da tabela como um DataFrame no Pandas.</li>
+    <li>Fazer autenticação no Google Drive através de conta de serviço.</li>
     <li>Executar as etapas de ELT (Extração, Transformação e Carregamento).</li>
     <li>Carregar os dados em uma pasta do Google Drive como Google Sheets.</li>
 </ol>
