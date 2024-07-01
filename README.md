@@ -2,7 +2,7 @@
 
 <h2>Objetivo</h2>
 <p>
-    Este projeto tem como objetivo extrair e processar dados de uma tabela em um site que contém um ranking de Fundos Imobiliários. Após a extração, os dados serão utilizados para criar uma Google Sheet em um repositório no Google Drive, após passar por etapas de ELT utilizando o Airflow.
+    Este projeto tem como objetivo extrair e processar dados de uma tabela em um site que contém um ranking de Fundos Imobiliários. Após a extração, os dados serão utilizados para criar uma Google Sheet em um repositório no Google Drive, após passar por etapas de ETL utilizando o Airflow.
 </p>
 
 <h2>Infraestrutura</h2>
